@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .signin-form {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            width: 300px;
+        }
+        .signin-form h2 {
+            margin-bottom: 20px;
+            font-size: 24px;
+            text-align: center;
+        }
+        .signin-form input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .signin-form button {
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
+            border: none;
+            color: white;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .signin-form button:hover {
+            background-color: #0056b3;
+        }
+        .signup-link {
+            margin-top: 15px;
+            text-align: center;
+        }
+        .signup-link a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .signup-link a:hover {
+            text-decoration: underline;
+        }
+        input[type="text"], input[type="email"], input[type="password"] {
+            width: 100%;               /* Makes the input take up the full width of its container */
+            padding: 10px;             /* Adds padding inside the input box */
+            margin-top: 10px;          /* Adds space above the input field */
+            margin-bottom: 15px;       /* Adds space below the input field */
+            border: 1px solid #ccc;    /* Adds a light border around the input */
+            border-radius: 4px;        /* Rounds the corners of the input field */
+            box-sizing: border-box;    /* Ensures padding and border are included in the element's total width */
+            font-size: 16px;           /* Sets the font size */
+            background-color: #f9f9f9; /* Sets a light background color */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="signin-form">
+        <h2>Sign In</h2>
+        <form action="{{ url_for('signin') }}" method="POST">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" placeholder="Enter username" required>
+
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Enter password" required>
+
+            <button type="submit">Sign In</button>
+        </form>
+        <div class="signup-link">
+            Don't have an account? <a href="{{ url_for('signup') }}">Sign up here</a>
+        </div>
+    </div>
+
+</body>
+</html>
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In</title>
+</head>
+<body>
+    <h2>Sign In</h2>
+    <form method="POST" action="{{ url_for('signin') }}">
+        <label for="username">Username:</label><br>
+        <input type="text" id="username" name="username" required><br><br>
+
+        <label for="password">Password:</label><br>
+        <input type="password" id="password" name="password" required><br><br>
+
+        <button type="submit">Sign In</button>
+    </form>
+    <p>Don't have an account? <a href="{{ url_for('signup') }}">Sign Up</a></p>
+</body>
+</html> -->
