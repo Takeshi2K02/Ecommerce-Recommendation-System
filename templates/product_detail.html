@@ -23,6 +23,28 @@
             <button type="button" class="btn btn-primary">Add to Cart</button>
         </div>
     </div>
+
+    <!-- Section for similar products -->
+    <div class="mt-5">
+        <h2>Similar Products</h2>
+        <div class="row">
+            {% for similar_product in similar_products.itertuples() %}
+            <div class="col-md-3">
+                <div class="card">
+                    <img src="{{ similar_product.ImageURL }}" class="card-img-top" alt="{{ similar_product.Name }}" style="height: 200px; object-fit: cover;">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ similar_product.Name }}</h5>
+                        <p class="card-text">Price: ${{ similar_product.discounted_price }}</p>
+                        <p class="card-text">Rating: {{ similar_product.Rating }} / 5</p>
+                        <p class="card-text">Review Count: {{ similar_product.Rating_Count }}</p>
+                        <a href="{{ url_for('product_detail', product_id=similar_product.ProductID) }}" class="btn btn-primary">View Product</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
     <div class="mt-4">
         <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
     </div>

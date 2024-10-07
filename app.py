@@ -44,6 +44,46 @@ def get_similar_product_details(train_data, item_name):
     
     return similar_items_data
 
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Function to get similar product details based on a given item_name
+def get_similar_product_details(train_data, item_name, exclude_id=None):   
+    # Initialize the TF-IDF Vectorizer
+    tfidf_vectorizer = TfidfVectorizer(stop_words='english')
+    tfidf_matrix = tfidf_vectorizer.fit_transform(train_data['Name'])
+    
+    # Vectorize the provided item name
+    item_vector = tfidf_vectorizer.transform([item_name])
+    
+    # Calculate cosine similarity between the input product and all products
+    cosine_sim = cosine_similarity(item_vector, tfidf_matrix)
+    
+    # Enumerate and sort similar items by cosine similarity
+    similar_items = list(enumerate(cosine_sim[0]))
+    similar_items_sorted = sorted(similar_items, key=lambda x: x[1], reverse=True)
+    
+    # Optionally exclude the current product itself (by ProductID)
+    if exclude_id is not None:
+        similar_items_sorted = [item for item in similar_items_sorted if train_data.iloc[item[0]]['ProductID'] != exclude_id]
+    
+    # Select the top 16 similar items (excluding the first, which is the clicked item itself)
+    similar_items_sorted = similar_items_sorted[:16]
+    similar_items_indexed = [i[0] for i in similar_items_sorted]
+    
+    # Retrieve product details for the top similar items, including ProductID
+    similar_items_data = train_data.iloc[similar_items_indexed][['ProductID', 'Name', 'discounted_price', 'Rating', 'Description', 'ImageURL', 'Rating_Count']]
+    
+    return similar_items_data
+
+# Function to get similar products when clicking on a product (using ProductID)
+def on_product_click(train_data, clicked_product_id):
+    # Get the name of the clicked product using the ProductID
+    clicked_product_name = train_data[train_data['ProductID'] == clicked_product_id]['Name'].values[0]
+    
+    # Call the function to get similar products based on the clicked product's name, excluding the clicked product
+    return get_similar_product_details(train_data, clicked_product_name, exclude_id=clicked_product_id)
+
 def get_random_user_id():
     random_row = train_data.sample(n=1)  # Get one random row
     return random_row['shorten_user_id'].values[0] 
@@ -151,21 +191,38 @@ def recommendations():
                                    random_product_image_urls=random_product_image_urls,
                                    random_price=random.choice(price))
         
+# @app.route('/product/<product_id>')
+# def product_detail(product_id):
+#     # Logic to retrieve product details based on product_id
+#     # You might simulate it or get it from train_data
+#     product_details = train_data[train_data['ProductID'] == product_id]
+    
+#     if product_details.empty:
+#         return "Product not found.", 404
+
+#     return render_template('product_detail.html', product=product_details.iloc[0])
+
 @app.route('/product/<product_id>')
 def product_detail(product_id):
-    # Logic to retrieve product details based on product_id
-    # You might simulate it or get it from train_data
+    # Retrieve the product details based on product_id
     product_details = train_data[train_data['ProductID'] == product_id]
     
     if product_details.empty:
         return "Product not found.", 404
+    
+    # Call the function to get similar products
+    similar_products = on_product_click(train_data, product_id)
+    
+    # Pass product details and similar products to the template
+    return render_template('product_detail.html', 
+                           product=product_details.iloc[0], 
+                           similar_products=similar_products)
 
-    return render_template('product_detail.html', product=product_details.iloc[0])
 
 # Log out route
 @app.route('/logout')
 def logout():
-    session.pop('username', None)
+    session.pop('username', None)  # Remove the username from the session
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
