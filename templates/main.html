@@ -11,7 +11,7 @@
 
 <!-- Navbar -->
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
-  <a class="navbar-brand mx-auto" href="">Ecommerce Recommendation System</a>
+  <a class="navbar-brand mx-auto" href="{{ url_for('index') }}">ElectroMart</a>
   <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
   </button>
@@ -81,16 +81,20 @@
                 {{ product['Rating'] }} 
                 <span class="text-secondary">({{ product['Rating_Count'] }} reviews)</span>
               </p>
+
+              <!-- Product Price -->
+              <p class="card-text font-weight-bold text-primary">
+                ${{ product['discounted_price'] }}
+              </p>
     
               <!-- Spacer for Buttons at the Bottom -->
               <div class="mt-auto">
                 <!-- Buttons -->
                 <div class="d-flex justify-content-between">
-                  <form action="{{ url_for('product_detail', product_id=product['ProductID']) }}" method="get"></form>
                   <form action="{{ url_for('product_detail', product_id=product['ProductID']) }}" method="get">
-                    <button type="submit" class="btn btn-primary">view</button>
+                    <button type="submit" class="btn btn-primary" style="width:  fit-content; height:  fit-content; margin: 0 5px;">View Details</button>
                   </form>
-                  <button type="button" class="btn btn-outline-success">
+                  <button type="button" class="btn btn-outline-success" style="width: fit-content; height:  fit-content; margin: 0 5px;">
                     Add to Cart
                   </button>
                 </div>

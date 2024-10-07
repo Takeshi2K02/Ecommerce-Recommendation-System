@@ -40,7 +40,7 @@ def get_similar_product_details(train_data, item_name):
     similar_items_indexed = [i[0] for i in similar_items_sorted]
     
     # Include ProductID in the returned DataFrame
-    similar_items_data = train_data.iloc[similar_items_indexed][['ProductID', 'Name', 'discounted_price', 'Rating', 'Description', 'ImageURL', 'Rating_Count']]
+    similar_items_data = train_data.iloc[similar_items_indexed][['ProductID', 'Name', 'actual_price', 'Rating', 'Description', 'ImageURL', 'Rating_Count']]
     
     return similar_items_data
 
@@ -78,7 +78,7 @@ def collaborative_filtering_recommendations(train_data, target_user_id, top_n=12
             break  # Stop when we have enough recommendations
 
     # Get the details of recommended items
-    recommended_items_details = train_data[train_data['ProductID'].isin(recommended_items)][['Name', 'Rating_Count', 'Description', 'ImageURL', 'Rating']]
+    recommended_items_details = train_data[train_data['ProductID'].isin(recommended_items)][['ProductID', 'Name', 'discounted_price', 'Rating_Count', 'Description', 'ImageURL', 'Rating']]
     top_items = recommended_items_details.sort_values(by='Rating', ascending=False).head(top_n)
 
     return top_items
@@ -144,7 +144,42 @@ def on_product_click(train_data, clicked_product_id):
 
 def get_random_user_id():
     random_row = train_data.sample(n=1)  # Get one random row
-    return random_row['shorten_user_id'].values[0] 
+    return random_row['shorten_user_id'].values[0]
+
+def get_product_price(product_id):
+    # Retrieve the price based on product_id
+    product = train_data[train_data['ProductID'] == product_id]
+    if not product.empty:
+        return product['discounted_price'].values[0]  # Adjust 'Price' to your actual column name for price
+    return None
+
+
+# @app.route('/')
+# def index():
+#     # Create a list of random prices for each product
+#     price = [random.choice([40, 50, 60, 70, 100, 122, 106, 50, 30, 50]) for _ in range(len(trending_products))]
+    
+#     # Check if the user is logged in
+#     if 'username' in session:
+#         user_id = session.get('user_id')
+
+#         # Get recommendations for the logged-in user
+#         recommended_items = collaborative_filtering_recommendations(train_data, user_id, top_n=12)
+
+#         return render_template('index.html', 
+#                                trending_products=trending_products[:12], 
+#                                truncate=truncate, 
+#                                prices=price, 
+#                                username=session['username'], 
+#                                user_id=user_id, 
+#                                recommended_items=recommended_items)
+    
+#     # If not logged in, render the homepage without user-specific data
+#     return render_template('index.html', 
+#                            trending_products=trending_products[:12], 
+#                            truncate=truncate, 
+#                            prices=price)
+
 
 @app.route('/')
 def index():
@@ -276,13 +311,19 @@ def product_detail(product_id):
     if product_details.empty:
         return "Product not found.", 404
     
+    # Get the price
+    discounted_price = get_product_price(product_id)
+    
     # Call the function to get similar products
     similar_products = on_product_click(train_data, product_id)
     
     # Pass product details and similar products to the template
     return render_template('product_detail.html', 
                            product=product_details.iloc[0], 
-                           similar_products=similar_products)
+                           discounted_price=discounted_price,  
+                           similar_products=similar_products,
+                               username=session['username'],
+                               truncate=truncate)
 
 
 # Log out route

@@ -41,7 +41,7 @@
 <body>
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
-      <a class="navbar-brand mx-auto" href="">Ecommerce Recommendation System</a>
+      <a class="navbar-brand mx-auto" href="{{ url_for('index') }}">ElectroMart</a>
       <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
@@ -85,107 +85,97 @@
       </form>
     </div>
 
-    <!-- Recommended Products (Only if User is Logged In) -->
+
     {% if username %}
     <div class="container mt-5">
-      <h2 class="text-center mb-4">Recommended for You</h2>
-      <div class="row mt-4">
-        {% for index, item in recommended_items.iterrows() %}
-        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
-          <div class="card">
-              <img src="{{ item['ImageURL'] }}" class="card-img-top" alt="{{ item['Name'] }}" style="height: 200px;">
-            <div class="card-body">
-              <h5 class="card-title">{{ truncate(item['Name'],17) }}</h5>
-              <p class="card-text">Price: RS. {{ item['actual_price'] }}</p>
-              <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#recommendedModal{{ index }}">View Details</button>
-            </div>
-          </div>
-        </div>
-        <!-- Modal for Recommended Items -->
-        <div class="modal fade" id="recommendedModal{{ index }}" tabindex="-1" role="dialog" aria-labelledby="recommendedModalLabel" aria-hidden="true">
-          <div class="modal-dialog" role="document">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h5 class="modal-title" id="recommendedModalLabel">{{ item['Name'] }}</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                  <span aria-hidden="true">&times;</span>
-                </button>
-              </div>
-              <div class="modal-body">
-                <div class="row">
-                  <div class="col-md-4">
-                      <img src="{{ item['ImageURL'] }}" class="img-fluid" alt="{{ item['Name'] }}" style="height: 200px;">
-                  </div>
-                  <div class="col-md-8">
-                    <p><strong>Brand:</strong> {{ item['Brand'] }}</p>
-                    <p><strong>Review Count:</strong> {{ item['ReviewCount'] }}</p>
-                    <p><strong>Rating:</strong> {{ item['Rating'] }}</p>
-                    <p><strong>Price:</strong> RS. {{ item['actual_price'] }}</p>
+        <h2 class="text-center mb-4">Recommended Products</h2>
+        <div class="row mt-4">
+            {% for index, product in recommended_items.iterrows() %}
+            <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+              <div class="card h-100">
+                <!-- Product Image -->
+                <img src="{{ product['ImageURL'] }}" class="card-img-top" alt="{{ product['Name'] }}" style="height: 200px; object-fit: cover;" onerror="this.onerror=null; this.src='https://via.placeholder.com/300x200';">
+                
+                <!-- Card Body -->
+                <div class="card-body d-flex flex-column">
+                  <!-- Product Name -->
+                  <h5 class="card-title">{{ truncate(product['Name'], 34) }}</h5>
+    
+                  <!-- Rating and Review Count -->
+                  <p class="card-text text-muted">
+                    <i class="fas fa-star text-warning"></i> 
+                    {{ product['Rating'] }} 
+                    <span class="text-secondary">({{ product['Rating_Count'] }} reviews)</span>
+                  </p>
+    
+                  <!-- Product Price -->
+                  <p class="card-text font-weight-bold text-primary">
+                     Rs.{{ product['discounted_price'] }}
+                  </p>
+                  <!-- Spacer for Buttons at the Bottom -->
+                  <div class="mt-auto">
+                    <!-- Buttons -->
+                    <div class="d-flex justify-content-between">
+                      <form action="{{ url_for('product_detail', product_id=product['ProductID']) }}" method="get">
+                        <button type="submit" class="btn btn-primary" style="width:  fit-content; height:  fit-content; margin: 0 5px;">View Details</button>
+                      </form>
+                      <button type="button" class="btn btn-outline-success" style="width: fit-content; height: fit-content; margin: 0 5px;">
+                        Add to Cart
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary">Add to Cart</button>
-              </div>
             </div>
-          </div>
+            {% endfor %}
         </div>
-        {% endfor %}
-      </div>
     </div>
     {% endif %}
+    
 
-    <!-- Trending Products -->
-    <div class="container mt-5">
-      <h2 class="text-center mb-4">Popular Products</h2>
-      <div class="row mt-4">
-        {% for index, product in trending_products.iterrows() %}
-        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
-          <div class="card">
-              <img src="{{ product['ImageURL'] }}" class="card-img-top" alt="{{ product['Name'] }}" style="height: 200px;">
-            <div class="card-body">
-              <h5 class="card-title">{{ truncate(product['Name'],40) }}</h5>
-              <p class="card-text">Price: RS. {{ product['actual_price'] }}</p>
-              <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#productModal{{ index }}">Buy Now</button>
+<!-- Trending Products -->
+<div class="container mt-5">
+  <h2 class="text-center mb-4">Popular Products</h2>
+  <div class="row mt-4">
+    {% for index, product in trending_products.iterrows() %}
+    <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+      <div class="card h-100">
+        <!-- Product Image -->
+        <img src="{{ product['ImageURL'] }}" class="card-img-top" alt="{{ product['Name'] }}" style="height: 200px; object-fit: cover;" onerror="this.onerror=null; this.src='https://via.placeholder.com/300x200';">
+        
+        <!-- Card Body -->
+        <div class="card-body d-flex flex-column">
+          <!-- Product Name -->
+          <h5 class="card-title">{{ truncate(product['Name'], 34) }}</h5>
+
+          <!-- Rating and Review Count -->
+          <p class="card-text text-muted">
+            <i class="fas fa-star text-warning"></i> 
+            {{ product['Rating'] }} 
+            <span class="text-secondary">({{ product['Rating_Count'] }} reviews)</span>
+          </p>
+          
+          <!-- Product Price -->
+          <p class="card-text font-weight-bold text-primary">RS. {{ product['discounted_price'] }}</p>
+
+          <!-- Spacer for Buttons at the Bottom -->
+          <div class="mt-auto">
+            <!-- Buttons -->
+            <div class="d-flex justify-content-between">
+              <form action="{{ url_for('product_detail', product_id=product['ProductID']) }}" method="get">
+                <button type="submit" class="btn btn-primary" style="width: fit-content; height: fit-content; margin: 0 5px;">View Details</button>
+              </form>
+              <button type="button" class="btn btn-outline-success" style="width: fit-content; height: fit-content; margin: 0 5px;">Add to Cart</button>
             </div>
           </div>
         </div>
-        <!-- Modal -->
-        <div class="modal fade" id="productModal{{ index }}" tabindex="-1" role="dialog" aria-labelledby="productModalLabel" aria-hidden="true">
-          <div class="modal-dialog" role="document">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h5 class="modal-title" id="productModalLabel">{{ product['Name'] }}</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                  <span aria-hidden="true">&times;</span>
-                </button>
-              </div>
-              <div class="modal-body">
-                <div class="row">
-                  <div class="col-md-4">
-                      <img src="{{ product['ImageURL'] }}" class="img-fluid" alt="{{ product['Name'] }}" style="height: 200px;">
-                  </div>
-                  <div class="col-md-8">
-                    <p><strong>Brand:</strong> {{ product['Brand'] }}</p>
-                    <p><strong>Review Count:</strong> {{ product['ReviewCount'] }}</p>
-                    <p><strong>Rating:</strong> {{ product['Rating'] }}</p>
-                    <p><strong>Price:</strong> RS. {{ product['actual_price'] }}</p>
-                  </div>
-                </div>
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary">Add to Cart</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        {% endfor %}
       </div>
     </div>
+    {% endfor %}
+  </div>
+</div>
 
-    
+
 
     <!-- Settings Modal -->
     <div class="modal fade" id="settingsModal" tabindex="-1" role="dialog" aria-labelledby="settingsModalLabel" aria-hidden="true">
