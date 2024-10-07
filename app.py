@@ -25,8 +25,52 @@ class User(db.Model):
     email = db.Column(db.String(100), nullable=False)
     password = db.Column(db.String(100), nullable=False)
 
+class BrowsingHistory(db.Model):
+    __tablename__ = 'BrowsingHistory'  # Specify the table name here
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(100), db.ForeignKey('user.id'), nullable=False)
+    product_id = db.Column(db.String(100), nullable=False)
+    timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
+    user = db.relationship('User', backref='browsing_history')
+
+
 def truncate(text, length=20):
     return text if len(text) <= length else text[:length] + '...'
+
+def log_browsing_history(user_id, product_id):
+    # Create a new browsing history entry
+    history_entry = BrowsingHistory(user_id=user_id, product_id=product_id)
+    
+    # Add to session and commit to save to the database
+    db.session.add(history_entry)
+    db.session.commit()
+
+def get_browsing_history(user_id):
+    return BrowsingHistory.query.filter_by(user_id=user_id).order_by(BrowsingHistory.timestamp.desc()).all()
+
+def recommend_based_on_browsing(train_data, target_user_id, top_n=16):
+    # Fetch the user's browsing history
+    history = get_browsing_history(target_user_id)
+    print("User's Browsing History:", history)  # Debugging line
+
+    if not history:
+        return pd.DataFrame()  # Optionally, provide some default recommendations
+
+    # Extract the product IDs from the user's browsing history
+    viewed_product_ids = [entry.product_id for entry in history]
+    print("Viewed Product IDs:", viewed_product_ids)  # Debugging line
+    viewed_products = train_data[train_data['ProductID'].isin(viewed_product_ids)]
+    print("Viewed Products DataFrame:", viewed_products)  # Debugging line
+
+    if not viewed_products.empty:
+        last_viewed_product_name = viewed_products.iloc[-1]['Name']
+        print("Last Viewed Product Name:", last_viewed_product_name)  # Debugging line
+        content_based_rec = get_similar_product_details(train_data, last_viewed_product_name)
+
+        return content_based_rec[['ProductID', 'Name', 'discounted_price', 'Rating', 'Description', 'ImageURL', 'Rating_Count']].sort_values(by='Rating', ascending=False).head(top_n)
+    
+    return pd.DataFrame()  # Return empty if no viewed products
+
 
 def get_similar_product_details(train_data, item_name):   
     tfidf_vectorizer = TfidfVectorizer(stop_words='english')
@@ -153,42 +197,20 @@ def get_product_price(product_id):
         return product['discounted_price'].values[0]  # Adjust 'Price' to your actual column name for price
     return None
 
-
-# @app.route('/')
-# def index():
-#     # Create a list of random prices for each product
-#     price = [random.choice([40, 50, 60, 70, 100, 122, 106, 50, 30, 50]) for _ in range(len(trending_products))]
-    
-#     # Check if the user is logged in
-#     if 'username' in session:
-#         user_id = session.get('user_id')
-
-#         # Get recommendations for the logged-in user
-#         recommended_items = collaborative_filtering_recommendations(train_data, user_id, top_n=12)
-
-#         return render_template('index.html', 
-#                                trending_products=trending_products[:12], 
-#                                truncate=truncate, 
-#                                prices=price, 
-#                                username=session['username'], 
-#                                user_id=user_id, 
-#                                recommended_items=recommended_items)
-    
-#     # If not logged in, render the homepage without user-specific data
-#     return render_template('index.html', 
-#                            trending_products=trending_products[:12], 
-#                            truncate=truncate, 
-#                            prices=price)
-
-
 @app.route('/')
 def index():
     # Create a list of random prices for each product
     price = [random.choice([40, 50, 60, 70, 100, 122, 106, 50, 30, 50]) for _ in range(len(trending_products))]
     
+    # Initialize browsing_recommendations as empty for guest users
+    browsing_recommendations = pd.DataFrame()  # Assuming it's a DataFrame, adjust accordingly
+    
     # Check if the user is logged in
     if 'username' in session:
         user_id = session.get('user_id')
+
+        # Get recommendations for the logged-in user based on browsing history
+        browsing_recommendations = recommend_based_on_browsing(train_data, user_id, top_n=12)
 
         # Get recommendations for the logged-in user
         recommended_items = collaborative_filtering_recommendations(train_data, user_id, top_n=12)
@@ -199,13 +221,14 @@ def index():
                                prices=price, 
                                username=session['username'], 
                                user_id=user_id, 
-                               recommended_items=recommended_items)
+                               recommended_items=recommended_items,
+                               browsing_recommendations=browsing_recommendations)
     
-    # If not logged in, render the homepage without user-specific data
+    # If not logged in, pass empty browsing_recommendations
     return render_template('index.html', 
                            trending_products=trending_products[:12], 
                            truncate=truncate, 
-                           prices=price)
+                           prices=price)  # Ensure it's passed even for guests
 
 
 # 'signin' Route
@@ -289,7 +312,8 @@ def recommendations():
             else:
                 return render_template('main.html', 
                                        content_based_rec=hybrid_rec, 
-                                       truncate=truncate, username=session['username'], user_id=user_id)
+                                       truncate=truncate, username=session['username'], user_id=user_id,
+                       prod=prod)
         else:
             # Use content-based recommendations for guest users
             content_based_rec = get_similar_product_details(train_data, prod)
@@ -300,7 +324,8 @@ def recommendations():
             else:
                 return render_template('main.html', 
                                        content_based_rec=content_based_rec, 
-                                       truncate=truncate)
+                                       truncate=truncate,
+                       prod=prod)
 
 
 @app.route('/product/<product_id>')
@@ -311,19 +336,27 @@ def product_detail(product_id):
     if product_details.empty:
         return "Product not found.", 404
     
+    # Log the browsing history for the logged-in user
+    if 'username' in session:
+        user_id = session.get('user_id')
+        username = session['username']  # Get the username from the session
+        log_browsing_history(user_id, product_id)  # Log the viewing
+    else:
+        username = None  # Set username to None if not in session
+    
     # Get the price
     discounted_price = get_product_price(product_id)
     
     # Call the function to get similar products
     similar_products = on_product_click(train_data, product_id)
     
-    # Pass product details and similar products to the template
+    # Pass product details, similar products, and username to the template
     return render_template('product_detail.html', 
                            product=product_details.iloc[0], 
                            discounted_price=discounted_price,  
                            similar_products=similar_products,
-                               username=session['username'],
-                               truncate=truncate)
+                           username=username,  # Pass username to the template
+                           truncate=truncate)
 
 
 # Log out route

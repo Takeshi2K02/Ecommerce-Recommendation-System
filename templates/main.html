@@ -62,7 +62,7 @@
 
 {% if not content_based_rec.empty %}
 <div class="container mt-5">
-    <h2 class="text-center mb-4">Recommended Products</h2>
+    <h2 class="text-center mb-4">Results for '{{ prod }}'</h2>
     <div class="row mt-4">
         {% for index, product in content_based_rec.iterrows() %}
         <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
