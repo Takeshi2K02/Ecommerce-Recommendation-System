@@ -47,6 +47,42 @@ def get_similar_product_details(train_data, item_name):
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+def collaborative_filtering_recommendations(train_data, target_user_id, top_n=12):
+    # Create the user-item matrix
+    user_item_matrix = train_data.pivot_table(index='shorten_user_id', columns='ProductID', values='Rating', aggfunc='mean').fillna(0)
+
+    # Calculate the user similarity matrix using cosine similarity
+    user_similarity = cosine_similarity(user_item_matrix)
+
+    # Find the index of the target user in the matrix
+    target_user_index = user_item_matrix.index.get_loc(target_user_id)
+
+    # Get the similarity scores for the target user
+    user_similarities = user_similarity[target_user_index]
+
+    # Sort the users by similarity in descending order (excluding the target user)
+    similar_users_indices = user_similarities.argsort()[::-1][1:]
+
+    # Generate recommendations based on similar users
+    recommended_items = set()  # Use a set to avoid duplicates
+
+    for user_index in similar_users_indices:
+        # Get items rated by the similar user but not by the target user
+        rated_by_similar_user = user_item_matrix.iloc[user_index]
+        not_rated_by_target_user = (rated_by_similar_user > 0) & (user_item_matrix.iloc[target_user_index] == 0)
+
+        # Extract the item IDs of recommended items
+        recommended_items.update(user_item_matrix.columns[not_rated_by_target_user])
+
+        if len(recommended_items) >= top_n:
+            break  # Stop when we have enough recommendations
+
+    # Get the details of recommended items
+    recommended_items_details = train_data[train_data['ProductID'].isin(recommended_items)][['Name', 'Rating_Count', 'Description', 'ImageURL', 'Rating']]
+    top_items = recommended_items_details.sort_values(by='Rating', ascending=False).head(top_n)
+
+    return top_items
+
 # Function to get similar product details based on a given item_name
 def get_similar_product_details(train_data, item_name, exclude_id=None):   
     # Initialize the TF-IDF Vectorizer
@@ -76,6 +112,28 @@ def get_similar_product_details(train_data, item_name, exclude_id=None):
     
     return similar_items_data
 
+def hybrid_recommendations(train_data, target_user_id, item_name, top_n=16):
+    # Get content-based recommendations
+    content_based_rec = get_similar_product_details(train_data, item_name)
+
+    # Get collaborative filtering recommendations
+    collaborative_filtering_rec = collaborative_filtering_recommendations(train_data, target_user_id)
+
+    # Add missing columns to collaborative_filtering_rec with default values
+    if 'discounted_price' not in collaborative_filtering_rec.columns:
+        collaborative_filtering_rec['discounted_price'] = 0  # or some default value
+
+    # Ensure both recommendations are DataFrames with the same structure
+    content_based_rec = content_based_rec[['ProductID', 'Name', 'discounted_price', 'Rating', 'Description', 'ImageURL', 'Rating_Count']]
+    collaborative_filtering_rec = collaborative_filtering_rec[['Name', 'Rating_Count', 'Description', 'ImageURL', 'Rating', 'discounted_price']]
+
+    # Merge and deduplicate the recommendations
+    hybrid_rec = pd.concat([content_based_rec, collaborative_filtering_rec]).drop_duplicates(subset='Name')
+    
+    return hybrid_rec.head(top_n)
+
+
+
 # Function to get similar products when clicking on a product (using ProductID)
 def on_product_click(train_data, clicked_product_id):
     # Get the name of the clicked product using the ProductID
@@ -95,11 +153,18 @@ def index():
     
     # Check if the user is logged in
     if 'username' in session:
+        user_id = session.get('user_id')
+
+        # Get recommendations for the logged-in user
+        recommended_items = collaborative_filtering_recommendations(train_data, user_id, top_n=12)
+
         return render_template('index.html', 
                                trending_products=trending_products[:12], 
                                truncate=truncate, 
                                prices=price, 
-                               username=session['username'])
+                               username=session['username'], 
+                               user_id=user_id, 
+                               recommended_items=recommended_items)
     
     # If not logged in, render the homepage without user-specific data
     return render_template('index.html', 
@@ -119,6 +184,7 @@ def signin():
         
         if user:
             session['username'] = user.username
+            session['user_id'] = user.id
             return redirect(url_for('index'))
         else:
             return 'Invalid credentials'
@@ -174,33 +240,33 @@ def main():
 def recommendations():
     if request.method == 'POST':
         prod = request.form.get('prod')
-        content_based_rec = get_similar_product_details(train_data, prod)
-
-        if content_based_rec.empty:
-            message = "No recommendations available for this product."
-            return render_template('main.html', message=message)
-        else:
-            # Create a list of random image URLs for each recommended product
-            random_product_image_urls = [random.choice(trending_products['ImageURL']) for _ in range(len(content_based_rec))]
-
-            print(content_based_rec)
-            print(random_product_image_urls)
-
-            price = [40, 50, 60, 70, 100, 122, 106, 50, 30, 50]
-            return render_template('main.html', content_based_rec=content_based_rec, truncate=truncate,
-                                   random_product_image_urls=random_product_image_urls,
-                                   random_price=random.choice(price))
         
-# @app.route('/product/<product_id>')
-# def product_detail(product_id):
-#     # Logic to retrieve product details based on product_id
-#     # You might simulate it or get it from train_data
-#     product_details = train_data[train_data['ProductID'] == product_id]
-    
-#     if product_details.empty:
-#         return "Product not found.", 404
+        # Check if the user is logged in
+        if 'username' in session:
+            user_id = session.get('user_id')
 
-#     return render_template('product_detail.html', product=product_details.iloc[0])
+            # Use hybrid recommendations for logged-in users
+            hybrid_rec = hybrid_recommendations(train_data, user_id, prod, top_n=16)
+
+            if hybrid_rec.empty:
+                message = "No recommendations available for this product."
+                return render_template('main.html', message=message, username=session['username'], user_id=user_id)
+            else:
+                return render_template('main.html', 
+                                       content_based_rec=hybrid_rec, 
+                                       truncate=truncate, username=session['username'], user_id=user_id)
+        else:
+            # Use content-based recommendations for guest users
+            content_based_rec = get_similar_product_details(train_data, prod)
+
+            if content_based_rec.empty:
+                message = "No recommendations available for this product."
+                return render_template('main.html', message=message)
+            else:
+                return render_template('main.html', 
+                                       content_based_rec=content_based_rec, 
+                                       truncate=truncate)
+
 
 @app.route('/product/<product_id>')
 def product_detail(product_id):
